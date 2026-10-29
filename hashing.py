@@ -13,16 +13,9 @@ def is_prime(number: int) -> bool:
 
 
 @dataclass
-class Book:
-    title: str
-    shelf: str
-
-
-@dataclass
 class Node:
     key: int
     next: Optional["Node"] = None
-    book: Optional[Book] = None
 
 
 @dataclass
@@ -41,11 +34,10 @@ class Result:
     comparisons: int = 0
     collisions: int = 0
     steps: list[Step] = field(default_factory=list)
-    book: Optional[Book] = None
 
 
 class HashTable:
-    """Integer keys with optional book records, stored in the custom table.
+    """Integer keys stored in the custom table.
 
     A collision is one unequal live key encountered during insertion. A probe
     is a bucket/slot visit. A comparison is an equality check against a live key.
@@ -58,7 +50,6 @@ class HashTable:
             raise ValueError("Unknown collision-resolution strategy.")
         self.size, self.strategy, self.count = size, strategy, 0
         self.slots = [EMPTY] * size
-        self.books = [None] * size
 
     def snapshot(self) -> list[list[int] | int | str | None]:
         if self.strategy != STRATEGIES[0]:
@@ -77,8 +68,7 @@ class HashTable:
         for attempt in range(self.size):
             yield (key % self.size + attempt * step) % self.size
 
-    def operate(self, operation: str, key: int, trace: bool = True,
-                book: Optional[Book] = None) -> Result:
+    def operate(self, operation: str, key: int, trace: bool = True) -> Result:
         if operation not in ("Insert", "Search", "Delete"):
             raise ValueError("Unknown operation.")
         if not isinstance(key, int):
@@ -97,7 +87,6 @@ class HashTable:
             while node is not None:
                 result.comparisons += 1
                 if node.key == key:
-                    result.book = node.book
                     if operation == "Delete":
                         if previous is None:
                             self.slots[index] = node.next
@@ -115,11 +104,10 @@ class HashTable:
                 previous, node = node, node.next
             if operation == "Insert":
                 if previous is None:
-                    self.slots[index] = Node(key, book=book)
+                    self.slots[index] = Node(key)
                 else:
-                    previous.next = Node(key, book=book)
+                    previous.next = Node(key)
                 self.count += 1
-                result.book = book
                 result.status = "Inserted"
                 log(index, f"Append {key} to bucket {index}.", "success")
             else:
@@ -140,9 +128,7 @@ class HashTable:
                 if operation == "Insert":
                     target = first_deleted if first_deleted is not None else index
                     self.slots[target] = key
-                    self.books[target] = book
                     self.count += 1
-                    result.book = book
                     result.status = "Inserted"
                     log(index, f"Slot {index} is empty. Duplicate check is complete.")
                     log(target, f"Store {key} at slot {target}.", "success")
@@ -152,10 +138,8 @@ class HashTable:
                 return result
             result.comparisons += 1
             if value == key:
-                result.book = self.books[index]
                 if operation == "Delete":
                     self.slots[index] = DELETED
-                    self.books[index] = None
                     self.count -= 1
                     result.status = "Deleted"
                     log(index, f"Found {key}. Leave a deleted marker to preserve the probe path.", "success")
@@ -169,9 +153,7 @@ class HashTable:
 
         if operation == "Insert" and first_deleted is not None:
             self.slots[first_deleted] = key
-            self.books[first_deleted] = book
             self.count += 1
-            result.book = book
             result.status = "Inserted"
             log(first_deleted, f"All slots checked. Reuse deleted slot {first_deleted} for {key}.", "success")
         else:

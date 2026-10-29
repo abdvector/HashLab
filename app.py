@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from experiments import run_experiment
-from hashing import Book, DELETED, HashTable, STRATEGIES
+from hashing import DELETED, HashTable, STRATEGIES
 
 
 def reset_table(size, strategy):
@@ -19,10 +19,10 @@ def reset_table(size, strategy):
     st.session_state.trace_position = 1
 
 
-def execute(operation, key, book=None):
+def execute(operation, key):
     table = st.session_state.table
     st.session_state.before = table.snapshot()
-    result = table.operate(operation, key, book=book)
+    result = table.operate(operation, key)
     st.session_state.latest = result
     st.session_state.collisions += result.collisions
     st.session_state.trace_position = len(result.steps)
@@ -53,57 +53,39 @@ def table_html(snapshot, active=None, visited=()):
 
 
 def simulator():
-    mode = st.radio("Data", ["Integer keys", "Library books"], horizontal=True)
-    library_mode = mode == "Library books"
     settings = st.columns([2, 1])
     strategy = settings[0].selectbox("Collision strategy", STRATEGIES)
     size = settings[1].selectbox("Table size", [7, 11, 13, 17, 23, 31], index=1)
-    st.caption("Changing the data mode, strategy or table size clears the table. Data lasts for this session.")
+    st.caption("Changing the strategy or table size clears the table. Data lasts for this session.")
     if "table" not in st.session_state or (
         st.session_state.table.size, st.session_state.table.strategy
-    ) != (size, strategy) or st.session_state.get("data_mode") != mode:
+    ) != (size, strategy):
         reset_table(size, strategy)
-        st.session_state.data_mode = mode
 
-    # Outside the form so selecting an operation immediately updates its fields.
-    choices = ["Add book", "Find book", "Remove book"] if library_mode else ["Insert", "Search", "Delete"]
-    action = st.selectbox("Operation", choices)
-    operation = ["Insert", "Search", "Delete"][choices.index(action)]
+    operation = st.selectbox("Operation", ["Insert", "Search", "Delete"])
     with st.form("operation_form"):
         key = st.number_input(
-            "Book ID" if library_mode else "Integer key",
-            min_value=1 if library_mode else -1_000_000_000, max_value=1_000_000_000,
+            "Integer key", min_value=-1_000_000_000, max_value=1_000_000_000,
             value=12, step=1,
         )
-        title, shelf = "", ""
-        if library_mode and operation == "Insert":
-            title = st.text_input("Book title", max_chars=120)
-            shelf = st.text_input("Shelf location", max_chars=40, placeholder="A2")
         submitted = st.form_submit_button(
             "Run operation", type="primary", use_container_width=True,
         )
     if submitted:
-        if library_mode and operation == "Insert" and (not title.strip() or not shelf.strip()):
-            st.error("Enter a book title and shelf location.")
-        else:
-            book = Book(title.strip(), shelf.strip()) if library_mode and operation == "Insert" else None
-            execute(operation, int(key), book)
+        execute(operation, int(key))
 
     actions = st.columns(2)
     if actions[0].button("Load collision sample", use_container_width=True,
                          help="Replaces the table with five entries that share an initial index."):
         reset_table(size, strategy)
-        titles = ["Algorithms", "Python Basics", "Data Structures", "Computer Networks", "Database Systems"]
-        for i, title in enumerate(titles):
-            sample_key = 12 + size * i
-            book = Book(title, f"{chr(65 + i)}{i + 2}") if library_mode else None
-            execute("Insert", sample_key, book)
+        for i in range(5):
+            execute("Insert", 12 + size * i)
     if actions[1].button("Clear table", use_container_width=True):
         reset_table(size, strategy)
 
     table = st.session_state.table
     metrics = st.columns(3)
-    metrics[0].metric("Stored books" if library_mode else "Stored keys", table.count)
+    metrics[0].metric("Stored keys", table.count)
     metrics[1].metric("Load factor", f"{table.count / size:.2f}")
     metrics[2].metric("Collisions", st.session_state.collisions,
                       help="Unequal stored keys encountered during insertion attempts.")
@@ -117,21 +99,15 @@ def simulator():
     display = st.empty()
     display.markdown(table_html(table.snapshot()), unsafe_allow_html=True)
     if result is None:
-        st.caption("Add a book or load the sample to get started." if library_mode else "Insert a key or load the sample to get started.")
+        st.caption("Insert a key or load the sample to get started.")
         return
 
     st.subheader("Last operation")
-    message = f"Book {result.key}: {result.status.lower()}" if library_mode else f"{result.operation} {result.key}: {result.status.lower()}"
+    message = f"{result.operation} {result.key}: {result.status.lower()}"
     if result.status in ("Table full", "Not found"):
         st.warning(message)
     else:
         st.success(message)
-    if library_mode and result.book is not None:
-        with st.container(border=True):
-            st.text(result.book.title)
-            st.caption(f"Book ID: {result.key} | Shelf: {result.book.shelf}")
-        if result.status == "Already present":
-            st.caption("This ID is already registered. Its book details have been kept.")
     st.caption(
         f"{result.probes} bucket/slot visits | {result.comparisons} key comparisons"
         f" | {result.collisions} insertion collisions"

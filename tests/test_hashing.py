@@ -2,7 +2,7 @@ import random
 import unittest
 
 from experiments import run_experiment
-from hashing import Book, DELETED, HashTable, STRATEGIES
+from hashing import DELETED, HashTable, STRATEGIES
 
 
 class HashTableTests(unittest.TestCase):
@@ -99,26 +99,6 @@ class HashTableTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             HashTable(11, "invalid")
 
-    def test_book_records_survive_collisions_duplicates_and_slot_reuse(self):
-        for strategy in STRATEGIES:
-            table = HashTable(7, strategy)
-            for i in range(7):
-                table.operate("Insert", 12 + 7 * i, book=Book(f"Book {i}", f"A{i}"))
-            for i in range(7):
-                found = table.operate("Search", 12 + 7 * i)
-                self.assertEqual(found.book, Book(f"Book {i}", f"A{i}"))
-            duplicate = table.operate("Insert", 19, book=Book("Replacement", "Z9"))
-            self.assertEqual(duplicate.status, "Already present")
-            self.assertEqual(duplicate.book, Book("Book 1", "A1"))
-            removed = table.operate("Delete", 12)
-            self.assertEqual(removed.book, Book("Book 0", "A0"))
-            self.assertIsNone(table.operate("Search", 12).book)
-            self.assertEqual(table.operate("Search", 19).book, Book("Book 1", "A1"))
-            table.operate("Insert", 61, book=Book("New book", "B2"))
-            self.assertEqual(table.operate("Search", 61).book, Book("New book", "B2"))
-            if strategy != STRATEGIES[0]:
-                self.assertEqual(table.operate("Insert", 99, book=Book("Overflow", "C3")).status, "Table full")
-                self.assertIsNone(table.operate("Search", 99).book)
 
 
 if __name__ == "__main__":

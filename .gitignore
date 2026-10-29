@@ -5,5 +5,5 @@ __pycache__/
 .streamlit/secrets.toml
 /tmp/
 /artifacts/
-/output/report/*.pdf
+*.pdf
 ~$*

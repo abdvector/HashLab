@@ -22,18 +22,6 @@ the table. Changing strategy or capacity starts a new table. Duplicate keys are
 not inserted. Earlier steps show the state before the operation; the final step
 shows its result.
 
-Select **Library books** to add a book by its positive integer ID, title and shelf
-location, find its details by ID, or remove it. Book records live inside the same
-custom hash table: in linked nodes for chaining and corresponding array slots
-for probing. A matching hash index never substitutes for matching the full ID.
-Existing IDs keep their original details. Blank titles or shelf locations are
-rejected. Switching data mode also clears the table; records are session-only.
-
-For a short library demo, choose capacity 11 and load the collision sample.
-IDs 12 and 23 both start at bucket 1. Find book 23 to retrieve "Python Basics",
-shelf B3, through the selected collision strategy. Remove book 12, then find 23
-again to demonstrate that deleting one colliding record preserves the others.
-
 **Compare strategies:** run identical random or same-bucket workloads through all
 three strategies. Compare average key comparisons across increasing load factors,
 view the final results, and download measurements. Comparisons run only when
